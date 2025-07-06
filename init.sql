@@ -1,0 +1,9 @@
+CREATE TABLE IF NOT EXISTS documents (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    extension VARCHAR(50) NOT NULL,
+    description TEXT,
+    content TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+); 
