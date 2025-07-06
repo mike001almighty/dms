@@ -66,7 +66,7 @@ docker-compose up -d db
 
 # Set environment variables
 export DB_HOST=localhost
-export DB_PORT=5432
+export DB_PORT=5433
 export DB_USER=dms_user
 export DB_PASSWORD=dms_password
 export DB_NAME=dms
