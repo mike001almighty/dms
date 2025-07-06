@@ -5,10 +5,12 @@ import (
 	"time"
 
 	"dms/database"
+
+	"github.com/google/uuid"
 )
 
 type Document struct {
-	ID          int       `json:"id"`
+	ID          uuid.UUID `json:"id"`
 	Title       string    `json:"title"`
 	Extension   string    `json:"extension"`
 	Description string    `json:"description"`
@@ -30,4 +32,26 @@ func (d *Document) Save() error {
 	}
 
 	return nil
+}
+
+func GetDocumentByID(id uuid.UUID) (*Document, error) {
+	query := `
+		SELECT id, title, extension, description, content, created_at, updated_at
+		FROM documents
+		WHERE id = $1`
+
+	var doc Document
+	row := database.DB.QueryRow(context.Background(), query, id)
+	err := row.Scan(&doc.ID, &doc.Title, &doc.Extension, &doc.Description, &doc.Content, &doc.CreatedAt, &doc.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &doc, nil
+}
+
+func DeleteDocumentByID(id uuid.UUID) error {
+	query := `DELETE FROM documents WHERE id = $1`
+	_, err := database.DB.Exec(context.Background(), query, id)
+	return err
 }
