@@ -42,6 +42,39 @@ func GetDocument(c *gin.Context) {
 	c.JSON(http.StatusOK, doc)
 }
 
+func UpdateDocument(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid UUID"})
+		return
+	}
+
+	var doc models.Document
+	if err := c.ShouldBindJSON(&doc); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Check if document exists
+	existingDoc, err := models.GetDocumentByID(id)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
+		return
+	}
+
+	// Update fields
+	doc.ID = id
+	doc.CreatedAt = existingDoc.CreatedAt
+
+	if err := doc.Save(); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update document"})
+		return
+	}
+
+	c.JSON(http.StatusOK, doc)
+}
+
 func DeleteDocument(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
