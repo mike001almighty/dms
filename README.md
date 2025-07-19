@@ -23,7 +23,7 @@ A simple document management system built with Go and PostgreSQL.
 docker-compose up -d
 ```
 
-2. The API will be available at `http://localhost:8080`
+2. The API will be available at `http://localhost:8085`
 
 ### API Endpoints
 

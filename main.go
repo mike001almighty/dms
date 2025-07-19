@@ -19,8 +19,8 @@ func main() {
 	r.GET("/documents/:id", handlers.GetDocument)
 	r.DELETE("/documents/:id", handlers.DeleteDocument)
 
-	log.Println("Server starting on :8080")
-	if err := r.Run(":8080"); err != nil {
+	log.Println("Server starting on :8085")
+	if err := r.Run(":8085"); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }
