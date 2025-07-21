@@ -13,7 +13,8 @@ import (
 )
 
 func CreateDocument(c *gin.Context) {
-	log.Println("Creating document")
+	log.Println("Creating document, with tenant id: ", c.MustGet("tenant_id"))
+	tenantID := c.MustGet("tenant_id").(string)
 	var doc models.Document
 
 	if err := c.ShouldBindJSON(&doc); err != nil {
@@ -21,24 +22,27 @@ func CreateDocument(c *gin.Context) {
 		return
 	}
 
+	// Set tenant ID from context
+	doc.TenantID = tenantID
+
 	if err := doc.Save(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save document"})
 		return
 	}
-	log.Println("Document created successfully with id: ", doc.ID, "and title: ", doc.Title)
+	log.Println("Document created successfully with id: ", doc.ID, "and title: ", doc.Title, "and tenant id: ", doc.TenantID)
 	c.JSON(http.StatusCreated, doc)
 }
 
 func GetDocument(c *gin.Context) {
-	log.Println("Getting document with id: ", c.Param("id"))
+	log.Println("Getting document with id: ", c.Param("id"), "and tenant id: ", c.MustGet("tenant_id"))
+	tenantID := c.MustGet("tenant_id").(string)
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid UUID"})
 		return
 	}
-	log.Println("Document with id: ", id, "found")
-	doc, err := models.GetDocumentByID(id)
+	doc, err := models.GetDocumentByID(id, tenantID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
 		return
@@ -48,7 +52,8 @@ func GetDocument(c *gin.Context) {
 }
 
 func UpdateDocument(c *gin.Context) {
-	log.Println("Updating document with id: ", c.Param("id"))
+	log.Println("Updating document with id: ", c.Param("id"), "and tenant id: ", c.MustGet("tenant_id"))
+	tenantID := c.MustGet("tenant_id").(string)
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -62,15 +67,16 @@ func UpdateDocument(c *gin.Context) {
 		return
 	}
 
-	// Check if document exists
-	existingDoc, err := models.GetDocumentByID(id)
+	// Check if document exists within tenant scope
+	existingDoc, err := models.GetDocumentByID(id, tenantID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
 		return
 	}
 
-	// Update fields
+	// Update fields with tenant context
 	doc.ID = id
+	doc.TenantID = tenantID
 	doc.CreatedAt = existingDoc.CreatedAt
 
 	if err := doc.Save(); err != nil {
@@ -82,7 +88,8 @@ func UpdateDocument(c *gin.Context) {
 }
 
 func DeleteDocument(c *gin.Context) {
-	log.Println("Deleting document with id: ", c.Param("id"))
+	log.Println("Deleting document with id: ", c.Param("id"), "and tenant id: ", c.MustGet("tenant_id"))
+	tenantID := c.MustGet("tenant_id").(string)
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -90,7 +97,7 @@ func DeleteDocument(c *gin.Context) {
 		return
 	}
 
-	err = models.DeleteDocumentByID(id)
+	err = models.DeleteDocumentByID(id, tenantID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete document"})
 		return
