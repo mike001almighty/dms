@@ -13,8 +13,10 @@ import (
 )
 
 func CreateDocument(c *gin.Context) {
-	log.Println("Creating document, with tenant id: ", c.MustGet("tenant_id"))
+	userID := c.MustGet("user_id").(string)
 	tenantID := c.MustGet("tenant_id").(string)
+	log.Println("Creating document for user: ", userID, "with tenant id: ", tenantID)
+
 	var doc models.Document
 
 	if err := c.ShouldBindJSON(&doc); err != nil {
@@ -22,20 +24,22 @@ func CreateDocument(c *gin.Context) {
 		return
 	}
 
-	// Set tenant ID from context
+	// Set tenant ID from JWT context
 	doc.TenantID = tenantID
 
 	if err := doc.Save(); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save document"})
 		return
 	}
-	log.Println("Document created successfully with id: ", doc.ID, "and title: ", doc.Title, "and tenant id: ", doc.TenantID)
+	log.Println("Document created successfully with id: ", doc.ID, "and title: ", doc.Title, "for user: ", userID, "and tenant id: ", doc.TenantID)
 	c.JSON(http.StatusCreated, doc)
 }
 
 func GetDocument(c *gin.Context) {
-	log.Println("Getting document with id: ", c.Param("id"), "and tenant id: ", c.MustGet("tenant_id"))
+	userID := c.MustGet("user_id").(string)
 	tenantID := c.MustGet("tenant_id").(string)
+	log.Println("Getting document with id: ", c.Param("id"), "for user: ", userID, "and tenant id: ", tenantID)
+
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {
@@ -88,8 +92,10 @@ func UpdateDocument(c *gin.Context) {
 }
 
 func DeleteDocument(c *gin.Context) {
-	log.Println("Deleting document with id: ", c.Param("id"), "and tenant id: ", c.MustGet("tenant_id"))
+	userID := c.MustGet("user_id").(string)
 	tenantID := c.MustGet("tenant_id").(string)
+	log.Println("Deleting document with id: ", c.Param("id"), "for user: ", userID, "and tenant id: ", tenantID)
+
 	idStr := c.Param("id")
 	id, err := uuid.Parse(idStr)
 	if err != nil {

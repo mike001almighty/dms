@@ -14,18 +14,49 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
+  keycloak-db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: keycloak_password
+    volumes:
+      - keycloak_data:/var/lib/postgresql/data
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0
+    command: start-dev
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://keycloak-db:5432/keycloak
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: keycloak_password
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME_STRICT: false
+      KC_HOSTNAME_STRICT_HTTPS: false
+    ports:
+      - "8081:8080"
+    depends_on:
+      - keycloak-db
+
   app:
     build: .
     ports:
       - "8080:8080"
     depends_on:
       - db
+      - keycloak
     environment:
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: dms_user
       DB_PASSWORD: dms_password
       DB_NAME: dms
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: dms
+      KEYCLOAK_CLIENT_ID: dms-service
 
 volumes:
-  postgres_data: 
+  postgres_data:
+  keycloak_data: 

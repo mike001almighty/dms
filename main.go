@@ -2,28 +2,15 @@ package main
 
 import (
 	"log"
-	"net/http"
 
+	"dms/auth"
 	"dms/database"
 	"dms/handlers"
 
 	"github.com/gin-gonic/gin"
 )
 
-func tenantMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		tenantID := c.GetHeader("X-Tenant-ID")
-		if tenantID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "X-Tenant-ID header is required"})
-			c.Abort()
-			return
-		}
-
-		// Add tenant ID to context for use in handlers
-		c.Set("tenant_id", tenantID)
-		c.Next()
-	}
-}
+// JWT middleware is now handled by auth package
 
 func main() {
 	if err := database.Connect(); err != nil {
@@ -32,10 +19,10 @@ func main() {
 
 	r := gin.Default()
 
-	// Apply tenant middleware to document endpoints
-	r.POST("/documents", tenantMiddleware(), handlers.CreateDocument)
-	r.GET("/documents/:id", tenantMiddleware(), handlers.GetDocument)
-	r.DELETE("/documents/:id", tenantMiddleware(), handlers.DeleteDocument)
+	// Apply JWT authentication middleware to document endpoints
+	r.POST("/documents", auth.JWTAuthMiddleware(), handlers.CreateDocument)
+	r.GET("/documents/:id", auth.JWTAuthMiddleware(), handlers.GetDocument)
+	r.DELETE("/documents/:id", auth.JWTAuthMiddleware(), handlers.DeleteDocument)
 
 	// Health endpoints don't need tenant filtering
 	r.GET("/health", handlers.BasicHealthCheck)
