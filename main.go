@@ -28,8 +28,8 @@ func main() {
 	r.GET("/health", handlers.BasicHealthCheck)
 	r.GET("/health/detailed", handlers.DetailedHealthCheck)
 
-	log.Println("Server starting on :8085")
-	if err := r.Run(":8085"); err != nil {
+	log.Println("Server starting on :8080")
+	if err := r.Run(":8080"); err != nil {
 		log.Fatal("Failed to start server:", err)
 	}
 }

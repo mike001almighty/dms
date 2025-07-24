@@ -1,0 +1,47 @@
+{
+    "realm": "dms",
+    "realm-name": "dms",
+    "enabled": true,
+    "roles": {
+        "realm": [
+            {
+                "name": "DMS_ADMIN",
+                "description": "Administrator"
+            }
+        ]
+
+    },
+    "clients": [
+        {
+            "clientId": "dms-client",
+            "enabled": true,
+            "publicClient": true,
+            "secret": "dms-secret",
+            "clientAuthenticatorType": "client-secret",
+            "directAccessGrantsEnabled": true,
+            "redirectUris": [
+                "*"
+            ]
+        }
+    ],
+    "users": [
+        {
+            "username": "dms_admin",
+            "firstName": "DMS",
+            "lastName": "Admin",
+            "email": "dms_admin@example.com",
+            "enabled": true,
+            "emailVerified": true,
+            "realmRoles": [
+                "DMS_ADMIN"
+            ],
+            "credentials": [
+                {
+                    "type": "password",
+                    "value": "dms_admin_password",
+                    "temporary": false
+                }
+            ]
+        }
+    ]
+}
