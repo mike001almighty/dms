@@ -1,6 +1,4 @@
 
-version: '3.8'
-
 services:
   db:
     image: postgres:15
@@ -20,22 +18,18 @@ services:
       retries: 5
 
   keycloak:
-    image: quay.io/keycloak/keycloak:23.0
-    command: start-dev
+    image: quay.io/keycloak/keycloak:25.0.4
+    user: "1000:1000"
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
       KEYCLOAK_IMPORT: /opt/keycloak/data/import/dms-realm.json
     ports:
       - "8081:8080"
+    command: start-dev --import-realm
     volumes:
       - ./dms-realm.json:/opt/keycloak/data/import/dms-realm.json
       - keycloak_data:/opt/keycloak/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health/ready || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
 
   app:
     build: .
@@ -45,7 +39,7 @@ services:
       db:
         condition: service_healthy
       keycloak:
-        condition: service_healthy
+        condition: service_started
     environment:
       DB_HOST: db
       DB_PORT: 5432
@@ -55,6 +49,7 @@ services:
       KEYCLOAK_URL: http://keycloak:8080
       KEYCLOAK_REALM: dms
       KEYCLOAK_CLIENT_ID: dms-service
+      KEYCLOAK_CLIENT_SECRET: your-service-secret-key
 
 volumes:
   postgres_data:

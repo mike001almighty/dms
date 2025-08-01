@@ -1,12 +1,15 @@
 {
     "realm": "dms",
-    "realm-name": "dms",
     "enabled": true,
     "roles": {
         "realm": [
             {
                 "name": "DMS_ADMIN",
                 "description": "Administrator"
+            },
+            {
+                "name": "DMS_SERVICE",
+                "description": "Service Account Role"
             }
         ]
 
@@ -22,6 +25,17 @@
             "redirectUris": [
                 "*"
             ]
+        },
+        {
+            "clientId": "dms-service",
+            "enabled": true,
+            "publicClient": false,
+            "secret": "your-service-secret-key",
+            "clientAuthenticatorType": "client-secret",
+            "serviceAccountsEnabled": true,
+            "directAccessGrantsEnabled": true,
+            "standardFlowEnabled": false,
+            "implicitFlowEnabled": false
         }
     ],
     "users": [
@@ -41,6 +55,14 @@
                     "value": "dms_admin_password",
                     "temporary": false
                 }
+            ]
+        },
+        {
+            "username": "service-account-dms-service",
+            "enabled": true,
+            "serviceAccountClientId": "dms-service",
+            "realmRoles": [
+                "DMS_SERVICE"
             ]
         }
     ]
