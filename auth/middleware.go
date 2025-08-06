@@ -21,26 +21,21 @@ type UserClaims struct {
 	TenantID string `json:"tenant_id,omitempty"`
 }
 
-func JWTAuthMiddleware() gin.HandlerFunc {
+func BasicAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header is required"})
+		username, password, ok := c.Request.BasicAuth()
+		if !ok {
+			c.Header("WWW-Authenticate", `Basic realm="DMS"`)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Basic authentication required"})
 			c.Abort()
 			return
 		}
 
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		if tokenString == authHeader {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Bearer token is required"})
-			c.Abort()
-			return
-		}
-
-		claims, err := ValidateJWT(tokenString)
+		claims, err := ValidateBasicAuth(username, password)
 		if err != nil {
-			log.Printf("JWT validation failed: %v", err)
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
+			log.Printf("Basic auth validation failed: %v", err)
+			c.Header("WWW-Authenticate", `Basic realm="DMS"`)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
 			c.Abort()
 			return
 		}

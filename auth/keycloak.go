@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -161,6 +162,34 @@ func parseRSAPublicKey(nStr, eStr string) (*rsa.PublicKey, error) {
 	// For now, return a placeholder - the JWT library will handle key validation
 	// through Keycloak's standard endpoints
 	return nil, fmt.Errorf("using simplified JWT validation - implement JWK parsing for production")
+}
+
+func ValidateBasicAuth(username, password string) (*UserClaims, error) {
+	// Validate credentials against Keycloak's token endpoint
+	tokenURL := fmt.Sprintf("%s/realms/%s/protocol/openid_connect/token", keycloakURL, keycloakRealm)
+
+	data := fmt.Sprintf("grant_type=password&client_id=dms-service&username=%s&password=%s", username, password)
+
+	resp, err := http.Post(tokenURL, "application/x-www-form-urlencoded", strings.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed to validate credentials: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("invalid credentials")
+	}
+
+	var tokenResponse struct {
+		AccessToken string `json:"access_token"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
+		return nil, fmt.Errorf("failed to decode token response: %w", err)
+	}
+
+	// Parse the JWT token to extract claims
+	return ValidateJWT(tokenResponse.AccessToken)
 }
 
 func GetKeycloakRealmURL() string {

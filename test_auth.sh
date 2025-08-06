@@ -1,41 +1,23 @@
 #!/bin/bash
 
-echo "Testing Keycloak Authentication..."
+echo "Testing Basic Authentication..."
 
-# First, we need to get a token from Keycloak
-echo "Getting JWT token from Keycloak..."
+# Test with username and password directly to DMS API
+echo "Testing DMS API with Basic Auth..."
 
-# For now, this will test basic token retrieval
-# Note: We need to create a client first in Keycloak before this works
-TOKEN_RESPONSE=$(curl -s -X POST \
-  "http://localhost:8081/realms/dms/protocol/openid_connect/token" \
-  -H "Content-Type: application/x-www-form-urlencoded" \
-  -d "grant_type=password" \
-  -d "client_id=dms-service" \
-  -d "username=dms_admin" \
-  -d "password=dms_admin_password")
+curl -X POST http://localhost:8080/documents \
+  -u "dms_admin:dms_admin_password" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Test Document", 
+    "extension": "txt",
+    "description": "Test document created via Basic Auth",
+    "content": "This is a test document content"
+  }'
 
-echo "Token response:"
-echo $TOKEN_RESPONSE
+echo -e "\n\nTesting document retrieval with Basic Auth..."
+curl -X GET http://localhost:8080/documents/1 \
+  -u "dms_admin:dms_admin_password"
 
-# Extract token (if successful)
-TOKEN=$(echo $TOKEN_RESPONSE | grep -o '"access_token":"[^"]*' | grep -o '[^"]*$')
-
-if [ -n "$TOKEN" ]; then
-    echo "✅ Successfully got JWT token!"
-    echo "Token: $TOKEN"
-    
-    echo "Testing DMS API with token..."
-    curl -X POST http://localhost:8080/documents \
-      -H "Authorization: Bearer $TOKEN" \
-      -H "Content-Type: application/json" \
-      -d '{
-        "title": "Test Document",
-        "extension": "txt",
-        "description": "Test document created via authenticated API",
-        "content": "This is a test document content"
-      }'
-else
-    echo "❌ Failed to get token. Response:"
-    echo $TOKEN_RESPONSE
-fi 
+echo -e "\n\nTesting health endpoint (no auth required)..."
+curl -X GET http://localhost:8080/health 
