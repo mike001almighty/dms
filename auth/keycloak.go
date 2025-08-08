@@ -15,12 +15,14 @@ import (
 )
 
 var (
-	keycloakURL    string
-	keycloakRealm  string
-	publicKey      *rsa.PublicKey
-	keyMutex       sync.RWMutex
-	lastKeyFetch   time.Time
-	keyFetchExpiry = 5 * time.Minute
+	keycloakURL          string
+	keycloakRealm        string
+	keycloakClientID     string
+	keycloakClientSecret string
+	publicKey            *rsa.PublicKey
+	keyMutex             sync.RWMutex
+	lastKeyFetch         time.Time
+	keyFetchExpiry       = 5 * time.Minute
 )
 
 type KeycloakCerts struct {
@@ -38,12 +40,20 @@ type KeycloakCerts struct {
 func init() {
 	keycloakURL = os.Getenv("KEYCLOAK_URL")
 	keycloakRealm = os.Getenv("KEYCLOAK_REALM")
+	keycloakClientID = os.Getenv("KEYCLOAK_CLIENT_ID")
+	keycloakClientSecret = os.Getenv("KEYCLOAK_CLIENT_SECRET")
 
 	if keycloakURL == "" {
-		keycloakURL = "http://keycloak:8080"
+		keycloakURL = "http://keycloak:8082"
 	}
 	if keycloakRealm == "" {
 		keycloakRealm = "dms"
+	}
+	if keycloakClientID == "" {
+		keycloakClientID = "dms-service"
+	}
+	if keycloakClientSecret == "" {
+		keycloakClientSecret = "your-service-secret-key"
 	}
 
 	// Initialize public key
@@ -168,7 +178,8 @@ func ValidateBasicAuth(username, password string) (*UserClaims, error) {
 	// Validate credentials against Keycloak's token endpoint
 	tokenURL := fmt.Sprintf("%s/realms/%s/protocol/openid_connect/token", keycloakURL, keycloakRealm)
 
-	data := fmt.Sprintf("grant_type=password&client_id=dms-service&username=%s&password=%s", username, password)
+	data := fmt.Sprintf("grant_type=password&client_id=%s&client_secret=%s&username=%s&password=%s",
+		keycloakClientID, keycloakClientSecret, username, password)
 
 	resp, err := http.Post(tokenURL, "application/x-www-form-urlencoded", strings.NewReader(data))
 	if err != nil {
