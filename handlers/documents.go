@@ -5,6 +5,7 @@ import (
 
 	"net/http"
 
+	"dms/auth"
 	"dms/database"
 	"dms/models"
 
@@ -147,4 +148,38 @@ func DetailedHealthCheck(c *gin.Context) {
 		},
 	}
 	c.JSON(http.StatusOK, health)
+}
+
+func Login(c *gin.Context) {
+	var loginRequest struct {
+		Username string `json:"username" binding:"required"`
+		Password string `json:"password" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&loginRequest); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Use existing Keycloak authentication
+	claims, err := auth.ValidateBasicAuth(loginRequest.Username, loginRequest.Password)
+	if err != nil {
+		log.Printf("Login failed for user %s: %v", loginRequest.Username, err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+		return
+	}
+
+	// Get token from Keycloak
+	token, err := auth.GetTokenForUser(loginRequest.Username, loginRequest.Password)
+	if err != nil {
+		log.Printf("Failed to get token for user %s: %v", loginRequest.Username, err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"access_token": token,
+		"user_id":      claims.PreferredUsername,
+		"roles":        claims.RealmAccess.Roles,
+	})
 }

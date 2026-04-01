@@ -10,7 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Basic Auth middleware is now handled by auth package
 
 func main() {
 	if err := database.Connect(); err != nil {
@@ -19,10 +18,12 @@ func main() {
 
 	r := gin.Default()
 
-	// Apply Basic authentication middleware to document endpoints
-	r.POST("/documents", auth.BasicAuthMiddleware(), handlers.CreateDocument)
-	r.GET("/documents/:id", auth.BasicAuthMiddleware(), handlers.GetDocument)
-	r.DELETE("/documents/:id", auth.BasicAuthMiddleware(), handlers.DeleteDocument)
+	// Login endpoint (no authentication required)
+	r.POST("/login", handlers.Login)
+
+	r.POST("/documents", auth.JWTAuthMiddleware(), handlers.CreateDocument)
+	r.GET("/documents/:id", auth.JWTAuthMiddleware(), handlers.GetDocument)
+	r.DELETE("/documents/:id", auth.JWTAuthMiddleware(), handlers.DeleteDocument)
 
 	// Health endpoints don't need tenant filtering
 	r.GET("/health", handlers.BasicHealthCheck)

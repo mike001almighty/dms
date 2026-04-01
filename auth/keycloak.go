@@ -2,9 +2,11 @@ package auth
 
 import (
 	"crypto/rsa"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/big"
 	"net/http"
 	"os"
 	"strings"
@@ -63,22 +65,24 @@ func init() {
 }
 
 func ValidateJWT(tokenString string) (*UserClaims, error) {
-	// For development/testing, implement simplified validation
-	// In production, you'd want proper RSA key validation against Keycloak's JWK endpoint
+	if os.Getenv("JWT_SKIP_VALIDATION") == "true" {
+		parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+		token, _, err := parser.ParseUnverified(tokenString, &UserClaims{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse token: %w", err)
+		}
+		claims, ok := token.Claims.(*UserClaims)
+		if !ok {
+			return nil, fmt.Errorf("invalid token claims")
+		}
+		return claims, nil
+	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &UserClaims{}, func(token *jwt.Token) (interface{}, error) {
-		// For development: Skip signature validation (NOT FOR PRODUCTION)
-		// In production: fetch and validate against Keycloak's public key
-		if os.Getenv("JWT_SKIP_VALIDATION") == "true" {
-			return []byte("dummy"), nil
-		}
-
-		// Validate the signing method
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 
-		// For production, ensure we have a fresh public key and use it
 		if err := ensurePublicKey(); err != nil {
 			return nil, fmt.Errorf("failed to get public key: %w", err)
 		}
@@ -122,7 +126,7 @@ func ensurePublicKey() error {
 }
 
 func refreshPublicKey() error {
-	certsURL := fmt.Sprintf("%s/realms/%s/protocol/openid_connect/certs", keycloakURL, keycloakRealm)
+	certsURL := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/certs", keycloakURL, keycloakRealm)
 
 	resp, err := http.Get(certsURL)
 	if err != nil {
@@ -166,17 +170,25 @@ func refreshPublicKey() error {
 }
 
 func parseRSAPublicKey(nStr, eStr string) (*rsa.PublicKey, error) {
-	// For development purposes, we'll implement a simplified JWT validation
-	// In production, use a proper JWT library with JWK support like github.com/MicahParks/keyfunc
+	nBytes, err := base64.RawURLEncoding.DecodeString(nStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode modulus: %w", err)
+	}
 
-	// For now, return a placeholder - the JWT library will handle key validation
-	// through Keycloak's standard endpoints
-	return nil, fmt.Errorf("using simplified JWT validation - implement JWK parsing for production")
+	eBytes, err := base64.RawURLEncoding.DecodeString(eStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode exponent: %w", err)
+	}
+
+	n := new(big.Int).SetBytes(nBytes)
+	e := int(new(big.Int).SetBytes(eBytes).Int64())
+
+	return &rsa.PublicKey{N: n, E: e}, nil
 }
 
 func ValidateBasicAuth(username, password string) (*UserClaims, error) {
 	// Validate credentials against Keycloak's token endpoint
-	tokenURL := fmt.Sprintf("%s/realms/%s/protocol/openid_connect/token", keycloakURL, keycloakRealm)
+	tokenURL := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token", keycloakURL, keycloakRealm)
 
 	data := fmt.Sprintf("grant_type=password&client_id=%s&client_secret=%s&username=%s&password=%s",
 		keycloakClientID, keycloakClientSecret, username, password)
@@ -205,4 +217,31 @@ func ValidateBasicAuth(username, password string) (*UserClaims, error) {
 
 func GetKeycloakRealmURL() string {
 	return fmt.Sprintf("%s/realms/%s", keycloakURL, keycloakRealm)
+}
+
+func GetTokenForUser(username, password string) (string, error) {
+	tokenURL := fmt.Sprintf("%s/realms/%s/protocol/openid-connect/token", keycloakURL, keycloakRealm)
+
+	data := fmt.Sprintf("grant_type=password&client_id=%s&client_secret=%s&username=%s&password=%s",
+		keycloakClientID, keycloakClientSecret, username, password)
+
+	resp, err := http.Post(tokenURL, "application/x-www-form-urlencoded", strings.NewReader(data))
+	if err != nil {
+		return "", fmt.Errorf("failed to get token: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("failed to get token: status %d", resp.StatusCode)
+	}
+
+	var tokenResponse struct {
+		AccessToken string `json:"access_token"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
+		return "", fmt.Errorf("failed to decode token response: %w", err)
+	}
+
+	return tokenResponse.AccessToken, nil
 }

@@ -21,26 +21,25 @@ type UserClaims struct {
 	TenantID string `json:"tenant_id,omitempty"`
 }
 
-func BasicAuthMiddleware() gin.HandlerFunc {
+func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		username, password, ok := c.Request.BasicAuth()
-		if !ok {
-			c.Header("WWW-Authenticate", `Basic realm="DMS"`)
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Basic authentication required"})
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Bearer token required"})
 			c.Abort()
 			return
 		}
 
-		claims, err := ValidateBasicAuth(username, password)
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+
+		claims, err := ValidateJWT(tokenString)
 		if err != nil {
-			log.Printf("Basic auth validation failed: %v", err)
-			c.Header("WWW-Authenticate", `Basic realm="DMS"`)
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid credentials"})
+			log.Printf("JWT validation failed: %v", err)
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
 			c.Abort()
 			return
 		}
 
-		// Extract tenant ID from claims or use a default mapping
 		tenantID := extractTenantID(claims)
 		if tenantID == "" {
 			c.JSON(http.StatusForbidden, gin.H{"error": "No tenant access"})
@@ -48,7 +47,6 @@ func BasicAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// Add user context to request
 		c.Set("user_id", claims.PreferredUsername)
 		c.Set("tenant_id", tenantID)
 		c.Set("user_roles", claims.RealmAccess.Roles)
