@@ -51,6 +51,34 @@ func GetDocumentByID(id uuid.UUID, tenantID string) (*Document, error) {
 	return &doc, nil
 }
 
+func ListDocumentsByTenant(tenantID string) ([]Document, error) {
+	query := `
+		SELECT id, tenant_id, title, extension, description, content, created_at, updated_at
+		FROM documents
+		WHERE tenant_id = $1
+		ORDER BY created_at DESC`
+
+	rows, err := database.DB.Query(context.Background(), query, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	docs := make([]Document, 0)
+	for rows.Next() {
+		var doc Document
+		if err := rows.Scan(&doc.ID, &doc.TenantID, &doc.Title, &doc.Extension, &doc.Description, &doc.Content, &doc.CreatedAt, &doc.UpdatedAt); err != nil {
+			return nil, err
+		}
+		docs = append(docs, doc)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return docs, nil
+}
+
 func DeleteDocumentByID(id uuid.UUID, tenantID string) error {
 	query := `DELETE FROM documents WHERE id = $1 AND tenant_id = $2`
 	_, err := database.DB.Exec(context.Background(), query, id, tenantID)

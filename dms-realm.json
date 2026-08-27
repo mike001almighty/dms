@@ -5,14 +5,17 @@
         "realm": [
             {
                 "name": "DMS_ADMIN",
-                "description": "Administrator"
+                "description": "Administrator — can delete documents"
+            },
+            {
+                "name": "DMS_USER",
+                "description": "User — can create, list, and get documents"
             },
             {
                 "name": "DMS_SERVICE",
                 "description": "Service Account Role"
             }
         ]
-
     },
     "clients": [
         {
@@ -35,7 +38,24 @@
             "serviceAccountsEnabled": true,
             "directAccessGrantsEnabled": true,
             "standardFlowEnabled": false,
-            "implicitFlowEnabled": false
+            "implicitFlowEnabled": false,
+            "protocol": "openid-connect",
+            "protocolMappers": [
+                {
+                    "name": "tenant_id",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-usermodel-attribute-mapper",
+                    "consentRequired": false,
+                    "config": {
+                        "user.attribute": "tenant_id",
+                        "claim.name": "tenant_id",
+                        "jsonType.label": "String",
+                        "id.token.claim": "true",
+                        "access.token.claim": "true",
+                        "userinfo.token.claim": "true"
+                    }
+                }
+            ]
         }
     ],
     "users": [
@@ -46,8 +66,12 @@
             "email": "dms_admin@example.com",
             "enabled": true,
             "emailVerified": true,
+            "attributes": {
+                "tenant_id": ["default"]
+            },
             "realmRoles": [
-                "DMS_ADMIN"
+                "DMS_ADMIN",
+                "DMS_USER"
             ],
             "credentials": [
                 {

@@ -1,92 +1,109 @@
 # Document Management System (DMS)
 
-A simple document management system built with Go and PostgreSQL.
+A simple multi-tenant document API built with Go, PostgreSQL, and Keycloak.
 
 ## Features
 
-- Upload documents with metadata (title, extension, description)
-- Store file content as base64 encoded data
-- PostgreSQL database for persistent storage
-- RESTful API endpoint
+- Login via Keycloak (password grant) returning a JWT
+- Create, list, get, and delete documents
+- Store file content as base64-encoded data in PostgreSQL
+- Tenant scoping derived from the JWT (documents are filtered by `tenant_id`)
 
-## Getting Started
-
-### Prerequisites
+## Prerequisites
 
 - Docker and Docker Compose
-- Go 1.21+ (for local development)
+- Go 1.23+ (for local development outside Docker)
 
-### Running the Application
+## Running the Application
 
-1. Start the services:
 ```bash
-docker-compose up -d
+docker compose up -d --build
 ```
 
-2. The API will be available at `http://localhost:8085`
+Services:
 
-### API Endpoints
+| Service   | URL / port                          |
+|-----------|-------------------------------------|
+| API       | `http://localhost:8080`             |
+| Keycloak  | `http://localhost:8082` (admin UI: `/admin`, user `admin` / `admin`) |
+| Postgres  | `localhost:5433`                    |
 
-#### Upload Document
-- **POST** `/documents`
-- **Content-Type:** `application/json`
+Keycloak realm `dms` (client `dms-service`, user `dms_admin`) is imported automatically from `dms-realm.json` on first start (empty Keycloak volume).
 
-**Request Body:**
+### Login
+
+```bash
+curl -X POST http://localhost:8080/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"dms_admin","password":"dms_admin_password"}'
+```
+
+Use the returned `access_token` as `Authorization: Bearer <token>` on document endpoints.
+
+## API Endpoints
+
+| Method   | Path              | Auth   | Description              |
+|----------|-------------------|--------|--------------------------|
+| `POST`   | `/login`          | No     | Exchange credentials for JWT |
+| `POST`   | `/documents`      | Bearer | Create a document        |
+| `GET`    | `/documents`      | Bearer | List documents for tenant |
+| `GET`    | `/documents/:id`  | Bearer | Get one document         |
+| `DELETE` | `/documents/:id`  | Bearer | Delete a document        |
+| `GET`    | `/health`         | No     | Liveness                 |
+| `GET`    | `/health/detailed`| No     | Liveness + DB check      |
+
+### Create document
+
+`POST /documents` — `Content-Type: application/json`
+
 ```json
 {
-    "title": "My Document",
-    "extension": "pdf",
-    "description": "A sample PDF document", 
-    "content": "base64-encoded-file-content"
+  "title": "My Document",
+  "extension": "pdf",
+  "description": "A sample PDF document",
+  "content": "base64-encoded-file-content"
 }
 ```
 
-**Response:**
-```json
-{
-    "id": 1,
-    "title": "My Document",
-    "extension": "pdf", 
-    "description": "A sample PDF document",
-    "content": "base64-encoded-file-content",
-    "created_at": "2024-01-01T10:00:00Z",
-    "updated_at": "2024-01-01T10:00:00Z"
-}
-```
+Response includes `id` (UUID), `tenant_id`, timestamps, and the fields above.
 
-## Development
+### List documents
 
-### Local Development
+`GET /documents` — returns an array of documents for the caller's tenant.
+
+## Local development (app only)
+
 ```bash
-# Install dependencies
-go mod tidy
+docker compose up -d db keycloak
 
-# Run PostgreSQL
-docker-compose up -d db
-
-# Set environment variables
 export DB_HOST=localhost
 export DB_PORT=5433
 export DB_USER=dms_user
 export DB_PASSWORD=dms_password
 export DB_NAME=dms
+export KEYCLOAK_URL=http://localhost:8082
+export KEYCLOAK_REALM=dms
+export KEYCLOAK_CLIENT_ID=dms-service
+export KEYCLOAK_CLIENT_SECRET=your-service-secret-key
 
-# Run the application
 go run main.go
 ```
 
-### Project Structure
+API listens on `:8080`.
+
+## Project structure
+
 ```
 dms/
-├── main.go              # Application entry point
-├── go.mod               # Go module definition
-├── docker-compose.yml   # Docker services configuration
-├── Dockerfile           # Go application container
-├── init.sql             # Database schema
+├── main.go
+├── go.mod / go.sum
+├── docker-compose.yml
+├── Dockerfile
+├── init.sql
+├── dms-realm.json          # Keycloak realm import
+├── keycloak_setup_guide.md # Manual Keycloak steps (optional; import covers this)
+├── auth/                   # JWT middleware + Keycloak client
 ├── handlers/
-│   └── documents.go     # API handlers
 ├── models/
-│   └── document.go      # Data models
 └── database/
-    └── connection.go    # Database connection
-``` 
+```

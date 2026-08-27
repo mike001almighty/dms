@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var DB *pgx.Conn
+var DB *pgxpool.Pool
 
 func Connect() error {
 	host := os.Getenv("DB_HOST")
@@ -20,11 +20,16 @@ func Connect() error {
 	connString := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
 
-	var err error
-	DB, err = pgx.Connect(context.Background(), connString)
+	pool, err := pgxpool.New(context.Background(), connString)
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
+	if err := pool.Ping(context.Background()); err != nil {
+		pool.Close()
+		return fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	DB = pool
 	return nil
 }

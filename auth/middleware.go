@@ -57,26 +57,10 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 }
 
 func extractTenantID(claims *UserClaims) string {
-	// If tenant_id is explicitly in claims, use it
 	if claims.TenantID != "" {
 		return claims.TenantID
 	}
-
-	// Check for tenant-specific roles or resource access
-	for resource, access := range claims.ResourceAccess {
-		if strings.HasPrefix(resource, "tenant-") {
-			return strings.TrimPrefix(resource, "tenant-")
-		}
-		// Check if user has access to specific tenant
-		for _, role := range access.Roles {
-			if strings.HasPrefix(role, "tenant-") {
-				return strings.TrimPrefix(role, "tenant-")
-			}
-		}
-	}
-
-	// Default: use username as tenant (for development/simple setups)
-	return claims.PreferredUsername
+	return ""
 }
 
 func HasRole(c *gin.Context, role string) bool {
@@ -96,4 +80,28 @@ func HasRole(c *gin.Context, role string) bool {
 		}
 	}
 	return false
+}
+
+func RequireRole(role string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !HasRole(c, role) {
+			c.JSON(http.StatusForbidden, gin.H{"error": "insufficient role"})
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+func RequireAnyRole(roles ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		for _, role := range roles {
+			if HasRole(c, role) {
+				c.Next()
+				return
+			}
+		}
+		c.JSON(http.StatusForbidden, gin.H{"error": "insufficient role"})
+		c.Abort()
+	}
 }

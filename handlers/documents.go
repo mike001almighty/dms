@@ -36,6 +36,20 @@ func CreateDocument(c *gin.Context) {
 	c.JSON(http.StatusCreated, doc)
 }
 
+func ListDocuments(c *gin.Context) {
+	userID := c.MustGet("user_id").(string)
+	tenantID := c.MustGet("tenant_id").(string)
+	log.Println("Listing documents for user: ", userID, "with tenant id: ", tenantID)
+
+	docs, err := models.ListDocumentsByTenant(tenantID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list documents"})
+		return
+	}
+
+	c.JSON(http.StatusOK, docs)
+}
+
 func GetDocument(c *gin.Context) {
 	userID := c.MustGet("user_id").(string)
 	tenantID := c.MustGet("tenant_id").(string)
@@ -50,42 +64,6 @@ func GetDocument(c *gin.Context) {
 	doc, err := models.GetDocumentByID(id, tenantID)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
-		return
-	}
-
-	c.JSON(http.StatusOK, doc)
-}
-
-func UpdateDocument(c *gin.Context) {
-	log.Println("Updating document with id: ", c.Param("id"), "and tenant id: ", c.MustGet("tenant_id"))
-	tenantID := c.MustGet("tenant_id").(string)
-	idStr := c.Param("id")
-	id, err := uuid.Parse(idStr)
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid UUID"})
-		return
-	}
-
-	var doc models.Document
-	if err := c.ShouldBindJSON(&doc); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	// Check if document exists within tenant scope
-	existingDoc, err := models.GetDocumentByID(id, tenantID)
-	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": "Document not found"})
-		return
-	}
-
-	// Update fields with tenant context
-	doc.ID = id
-	doc.TenantID = tenantID
-	doc.CreatedAt = existingDoc.CreatedAt
-
-	if err := doc.Save(); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update document"})
 		return
 	}
 

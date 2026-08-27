@@ -51,7 +51,6 @@ services:
       KEYCLOAK_REALM: dms
       KEYCLOAK_CLIENT_ID: dms-service
       KEYCLOAK_CLIENT_SECRET: your-service-secret-key
-      JWT_SKIP_VALIDATION: "true"
 
 volumes:
   postgres_data:
